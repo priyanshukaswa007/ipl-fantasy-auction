@@ -102,15 +102,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (code) {
           // Exchange the code for a session
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) {
             console.error('[auth-context] code exchange error:', error.message);
+            console.error('[auth-context] Make sure this URL is in Supabase Redirect URLs:', window.location.origin);
+          } else if (data?.session?.user) {
+            // Code exchange succeeded — sync user immediately
+            const dbUser = await syncUser(data.session.user);
+            if (mounted) setUser(dbUser);
           }
           // Clean the URL
           window.history.replaceState({}, '', window.location.pathname);
+          // If code exchange succeeded, we already have the user — skip getSession
+          if (!error && data?.session) {
+            return;
+          }
         }
 
-        // Now get the session (either existing or just-exchanged)
+        // Now get the session (either existing or no code in URL)
         const {
           data: { session },
         } = await supabase.auth.getSession();
