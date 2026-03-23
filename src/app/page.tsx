@@ -240,47 +240,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#0A0E1A' }}>
 
-      {/* ── Navbar ─────────────────────────────────────────────────────────── */}
-      <header
-        className="sticky top-0 z-50 flex items-center justify-between px-4 sm:px-8 h-16"
-        style={{
-          background: 'rgba(10,14,26,0.85)',
-          backdropFilter: 'blur(16px)',
-          borderBottom: '1px solid rgba(31,41,55,0.6)',
-        }}
-      >
-        <div className="flex items-center gap-2">
-          <span className="text-xl">🏏</span>
-          <span className="font-black text-base sm:text-lg tracking-tight text-white">
-            IPL <span className="text-gradient">Fantasy</span> Auction
-          </span>
-        </div>
-
-        <nav className="flex items-center gap-3">
-          {!loading && (
-            <>
-              {user ? (
-                <Link href="/dashboard" className="btn-primary px-4 py-2 text-sm">
-                  Dashboard
-                </Link>
-              ) : (
-                <>
-                  <Link
-                    href="/login"
-                    className="text-sm font-medium hidden sm:block"
-                    style={{ color: 'rgba(255,255,255,0.7)' }}
-                  >
-                    Sign in
-                  </Link>
-                  <Link href="/login" className="btn-primary px-4 py-2 text-sm">
-                    Get Started
-                  </Link>
-                </>
-              )}
-            </>
-          )}
-        </nav>
-      </header>
+      {/* Navbar is provided by layout.tsx — no duplicate here */}
 
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
       <section className="relative flex-1 flex items-center overflow-hidden px-4 sm:px-8 py-20 lg:py-28">
@@ -329,10 +289,10 @@ export default function HomePage() {
                 style={{ animationDelay: '0.15s' }}
               >
                 <Link href={primaryHref} className="btn-primary px-6 py-3 text-base">
-                  {loading ? '...' : primaryLabel}
+                  {primaryLabel}
                 </Link>
                 <Link href={secondaryHref} className="btn-secondary px-6 py-3 text-base">
-                  {loading ? '...' : secondaryLabel}
+                  {secondaryLabel}
                 </Link>
               </div>
 

@@ -95,18 +95,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true;
 
     (async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
 
-      if (!mounted) return;
+        if (!mounted) return;
 
-      if (session?.user) {
-        const dbUser = await syncUser(session.user);
-        if (mounted) setUser(dbUser);
+        if (session?.user) {
+          const dbUser = await syncUser(session.user);
+          if (mounted) setUser(dbUser);
+        }
+      } catch (err) {
+        console.error('[auth-context] session error:', err);
+      } finally {
+        if (mounted) setLoading(false);
       }
-
-      if (mounted) setLoading(false);
     })();
 
     // Subscribe to future auth changes
