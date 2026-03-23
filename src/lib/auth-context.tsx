@@ -90,12 +90,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const supabase = getSupabaseBrowser();
 
-  // Bootstrap: load existing session on mount
+  // Bootstrap: load existing session on mount, handle OAuth code exchange
   useEffect(() => {
     let mounted = true;
 
     (async () => {
       try {
+        // Check if there's an OAuth code in the URL (PKCE flow)
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
+
+        if (code) {
+          // Exchange the code for a session
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) {
+            console.error('[auth-context] code exchange error:', error.message);
+          }
+          // Clean the URL
+          window.history.replaceState({}, '', window.location.pathname);
+        }
+
+        // Now get the session (either existing or just-exchanged)
         const {
           data: { session },
         } = await supabase.auth.getSession();
