@@ -15,13 +15,24 @@ const supabase = createClient(
 
 export async function GET(req: NextRequest) {
   try {
-    // Optional: verify cron secret for security
+    // Verify auth: either CRON_SECRET header or valid Supabase session
     const authHeader = req.headers.get('authorization');
     const cronSecret = process.env.CRON_SECRET;
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      // Allow without secret if CRON_SECRET not set (for manual testing)
-      if (cronSecret) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    if (cronSecret) {
+      // If CRON_SECRET is set, require it
+      if (authHeader !== `Bearer ${cronSecret}`) {
+        // Also allow if user has a valid Supabase session (admin panel)
+        const sessionToken = req.cookies.get('sb-access-token')?.value
+          || authHeader?.replace('Bearer ', '');
+        if (sessionToken) {
+          const { data: { user } } = await supabase.auth.getUser(sessionToken);
+          if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+          }
+        } else {
+          return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
       }
     }
 

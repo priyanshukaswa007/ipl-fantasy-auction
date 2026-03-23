@@ -173,6 +173,24 @@ function parseScorecardToPerformances(
 
 export async function POST(req: NextRequest) {
   try {
+    // Auth check: require valid session or internal call
+    const authHeader = req.headers.get('authorization');
+    const referer = req.headers.get('referer') || '';
+    const isInternalCall = referer.includes(req.nextUrl.origin);
+
+    if (!isInternalCall) {
+      // External call — require auth
+      const token = authHeader?.replace('Bearer ', '');
+      if (token) {
+        const { data: { user } } = await supabase.auth.getUser(token);
+        if (!user) {
+          return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+      } else {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+    }
+
     const body = await req.json();
     const { match_id, match_number } = body;
 

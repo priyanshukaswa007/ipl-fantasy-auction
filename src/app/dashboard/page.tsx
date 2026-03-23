@@ -160,7 +160,18 @@ function CreateLeagueCard() {
     setLoading(true);
 
     const supabase  = getSupabaseBrowser();
-    const roomCode  = generateRoomCode();
+
+    // Generate a unique room code with collision check (retry up to 5 times)
+    let roomCode = generateRoomCode();
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const { data: existing } = await supabase
+        .from('rooms')
+        .select('id')
+        .eq('room_code', roomCode)
+        .maybeSingle();
+      if (!existing) break;
+      roomCode = generateRoomCode();
+    }
 
     const settings = {
       ...DEFAULT_ROOM_SETTINGS,
@@ -177,7 +188,7 @@ function CreateLeagueCard() {
         host_user_id: user.id,
         settings,
         status: 'waiting',
-        season: '2026',
+        season: 'IPL 2026',
       })
       .select('*')
       .single();

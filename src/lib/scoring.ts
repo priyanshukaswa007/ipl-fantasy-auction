@@ -95,11 +95,28 @@ export function getPointsBreakdown(input: ScoringInput) {
   if (input.sixes > 0) breakdown.push({ label: `${input.sixes} sixes`, points: input.sixes * 2 });
   if (input.runs >= 100) breakdown.push({ label: 'Century', points: 50 });
   else if (input.runs >= 50) breakdown.push({ label: 'Half-century', points: 25 });
-  if (input.runs >= 30 && input.runs < 50) breakdown.push({ label: '30+ runs', points: 10 });
+  if (input.runs >= 30) breakdown.push({ label: '30+ runs', points: 10 });
+  const isTailEnder = (input.batting_position ?? 0) >= 10;
+  if (input.runs === 0 && !input.did_not_bat && input.balls_faced > 0 && !isTailEnder) {
+    breakdown.push({ label: 'Duck', points: -5 });
+  }
   if (input.wickets > 0) breakdown.push({ label: `${input.wickets} wickets`, points: input.wickets * 25 });
+  if (input.wickets >= 5) breakdown.push({ label: '5-wicket haul', points: 50 });
+  if (input.wickets >= 3) breakdown.push({ label: '3-wicket bonus', points: 25 });
+  if (input.wickets >= 2) breakdown.push({ label: '2-wicket bonus', points: 10 });
   if (input.maidens > 0) breakdown.push({ label: `${input.maidens} maidens`, points: input.maidens * 15 });
+  if (input.overs_bowled > 0) {
+    const economy = input.runs_conceded / input.overs_bowled;
+    if (economy > 12) {
+      breakdown.push({ label: `Economy ${economy.toFixed(1)} (penalty)`, points: -Math.floor(input.overs_bowled) * 5 });
+    } else if (economy < 6) {
+      breakdown.push({ label: `Economy ${economy.toFixed(1)} (bonus)`, points: Math.floor(input.overs_bowled) * 5 });
+    }
+  }
   if (input.catches > 0) breakdown.push({ label: `${input.catches} catches`, points: input.catches * 10 });
   if (input.stumpings > 0) breakdown.push({ label: `${input.stumpings} stumpings`, points: input.stumpings * 15 });
+  if (input.run_outs_direct > 0) breakdown.push({ label: `${input.run_outs_direct} direct run-outs`, points: input.run_outs_direct * 10 });
+  if (input.run_outs_indirect > 0) breakdown.push({ label: `${input.run_outs_indirect} indirect run-outs`, points: input.run_outs_indirect * 5 });
   if (input.potm) breakdown.push({ label: 'Player of the Match', points: 25 });
   if (input.is_winner) breakdown.push({ label: 'Winning team', points: 15 });
 

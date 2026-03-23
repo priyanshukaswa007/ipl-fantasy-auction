@@ -26,7 +26,8 @@ export interface UseAuctionReturn {
   myPicks: AuctionPick[];
   isHost: boolean;
   loading: boolean;
-  placeBid: () => Promise<void>;
+  room: Room | null;
+  placeBid: (customAmount?: number) => Promise<void>;
   nominatePlayer: (playerId: string) => Promise<void>;
   nominateNext: () => Promise<void>;
   markSold: () => Promise<void>;
@@ -388,7 +389,7 @@ export function useAuction(roomCode: string): UseAuctionReturn {
 
   // ── Public actions ────────────────────────────────────────────────────────────
 
-  const placeBid = useCallback(async () => {
+  const placeBid = useCallback(async (customAmount?: number) => {
     const currentRoom = roomRef.current;
     const state = auctionStateRef.current;
     if (!currentRoom || !user || !myMember) return;
@@ -416,10 +417,16 @@ export function useAuction(roomCode: string): UseAuctionReturn {
 
     if (!permission.allowed) return;
 
-    const nextBid = AuctionEngine.getNextBid(
-      state.current_bid,
-      currentRoom.settings.bid_increment,
-    );
+    // Use custom amount if provided (for quick-increment buttons), otherwise use default increment
+    const nextBid = customAmount
+      ? Math.round(customAmount * 100) / 100
+      : AuctionEngine.getNextBid(state.current_bid, currentRoom.settings.bid_increment);
+
+    // Validate custom amount is higher than current bid
+    if (nextBid <= state.current_bid) return;
+
+    // Budget check for custom amount
+    if (nextBid > myMember.budget_remaining) return;
 
     // Optimistically update local state
     setAuctionState((prev) => ({
@@ -707,6 +714,7 @@ export function useAuction(roomCode: string): UseAuctionReturn {
     myPicks,
     isHost,
     loading,
+    room,
     placeBid,
     nominatePlayer,
     nominateNext,

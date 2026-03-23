@@ -195,6 +195,7 @@ export function AuctionBoard({ roomCode }: AuctionBoardProps) {
     myPicks,
     isHost,
     loading,
+    room,
     placeBid,
     nominatePlayer,
     nominateNext,
@@ -203,6 +204,30 @@ export function AuctionBoard({ roomCode }: AuctionBoardProps) {
     pauseAuction,
     resumeAuction,
   } = useAuction(roomCode);
+
+  // Use real room settings, with sensible fallbacks
+  const settings = room?.settings ?? {
+    budget: 120,
+    squad_size_min: 18,
+    squad_size_max: 25,
+    max_players: 10,
+    auction_mode: 'live_auction' as const,
+    composition_rules: {
+      max_overseas: 8,
+      min_wicketkeepers: 2,
+      min_batters: 3,
+      min_bowlers: 3,
+      min_allrounders: 1,
+      enabled: true,
+    },
+    bid_increment: 0.25,
+    timer_seconds: 15,
+    draft_timer_seconds: 60,
+    rtm_enabled: false,
+    trade_window: 'always' as const,
+    commissioner_mode: false,
+    player_order: 'random' as const,
+  };
 
   const [roleFilter, setRoleFilter] = useState<Player['role'] | 'All'>('All');
   const [showConfetti, setShowConfetti] = useState(false);
@@ -232,30 +257,7 @@ export function AuctionBoard({ roomCode }: AuctionBoardProps) {
           myMember,
           currentPlayer,
           auctionState,
-          // We don't have room settings directly here; pass a minimal proxy
-          // The hook already tracks members with budget_remaining
-          {
-            budget: 120,
-            squad_size_min: 18,
-            squad_size_max: 25,
-            max_players: 10,
-            auction_mode: 'live_auction',
-            composition_rules: {
-              max_overseas: 8,
-              min_wicketkeepers: 2,
-              min_batters: 3,
-              min_bowlers: 3,
-              min_allrounders: 1,
-              enabled: true,
-            },
-            bid_increment: 0.25,
-            timer_seconds: 15,
-            draft_timer_seconds: 60,
-            rtm_enabled: false,
-            trade_window: 'always',
-            commissioner_mode: false,
-            player_order: 'random',
-          },
+          settings,
           myPlayerObjects,
         )
       : { allowed: false, reason: 'No player on the block' };
@@ -478,7 +480,7 @@ export function AuctionBoard({ roomCode }: AuctionBoardProps) {
       {/* Bid panel */}
       <BidPanel
         currentBid={auctionState.current_bid}
-        bidIncrement={0.25}
+        bidIncrement={settings.bid_increment}
         onBid={placeBid}
         canBid={bidPermission.allowed}
         bidReason={bidPermission.reason}
@@ -487,7 +489,7 @@ export function AuctionBoard({ roomCode }: AuctionBoardProps) {
           auctionState.status === 'in_progress' && !!currentPlayer
         }
         currentBidder={currentBidderName}
-        totalTimerSeconds={15}
+        totalTimerSeconds={settings.timer_seconds}
         onTimerComplete={() => {
           // Non-host clients: timer expiry is visual only; host drives markSold/markUnsold
         }}

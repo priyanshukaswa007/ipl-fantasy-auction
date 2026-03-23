@@ -9,7 +9,7 @@ import { Timer } from '@/components/Timer';
 export interface BidPanelProps {
   currentBid: number;
   bidIncrement: number;
-  onBid: () => Promise<void>;
+  onBid: (customAmount?: number) => Promise<void>;
   canBid: boolean;
   bidReason?: string;
   timeRemaining: number;
@@ -43,14 +43,14 @@ export function BidPanel({
   const lastBidRef = useRef(0);
 
   // Throttled bid handler — max once per 2 seconds
-  const handleBid = useCallback(async () => {
+  const handleBid = useCallback(async (customAmount?: number) => {
     const now = Date.now();
     if (!canBid || now - lastBidRef.current < 2000) return;
     lastBidRef.current = now;
 
     setPressing(true);
     try {
-      await onBid();
+      await onBid(customAmount);
     } finally {
       // Brief visual bounce then release
       setTimeout(() => setPressing(false), 300);
@@ -94,7 +94,7 @@ export function BidPanel({
       {/* ── Main BID button ─── */}
       <div className="relative w-full max-w-xs group">
         <button
-          onClick={handleBid}
+          onClick={() => handleBid()}
           disabled={!canBid}
           aria-label={`Place bid of ${formatCurrency(nextBid)}`}
           title={!canBid ? (bidReason ?? 'Cannot bid right now') : undefined}
@@ -155,7 +155,7 @@ export function BidPanel({
           return (
             <button
               key={inc}
-              onClick={isActive ? handleBid : undefined}
+              onClick={isActive ? () => handleBid(amt) : undefined}
               disabled={!isActive}
               aria-label={`Quick bid +${inc} Cr`}
               className={cn(
