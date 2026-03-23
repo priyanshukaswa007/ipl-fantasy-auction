@@ -14,7 +14,7 @@ import type { MatchResult, PlayerMatchStats, Player, Room, IPLTeam } from '@/typ
 
 // ── Tab type ──────────────────────────────────────────────────────────────────
 
-type TabId = 'matches' | 'stats' | 'leaderboard' | 'players';
+type TabId = 'auto' | 'matches' | 'stats' | 'leaderboard' | 'players';
 
 // ── IPL teams ─────────────────────────────────────────────────────────────────
 
@@ -27,6 +27,213 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
     <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
       {children}
     </h2>
+  );
+}
+
+// ── Auto Scores tab (CricAPI Integration) ────────────────────────────────────
+
+function AutoScoresTab() {
+  const [checking, setChecking] = useState(false);
+  const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState('');
+  const [manualMatchId, setManualMatchId] = useState('');
+  const [manualNumber, setManualNumber] = useState('');
+  const [processing, setProcessing] = useState(false);
+
+  const checkForScores = async () => {
+    setChecking(true);
+    setError('');
+    setResult(null);
+    try {
+      const res = await fetch('/api/scores/check');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Check failed');
+      setResult(data);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const processManualMatch = async () => {
+    if (!manualMatchId) return;
+    setProcessing(true);
+    setError('');
+    setResult(null);
+    try {
+      const res = await fetch('/api/scores/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          match_id: manualMatchId.trim(),
+          match_number: parseInt(manualNumber) || 0,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Processing failed');
+      setResult(data);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <SectionTitle>Auto Score Updates (CricAPI)</SectionTitle>
+
+      {/* How it works */}
+      <Card>
+        <CardBody>
+          <h3 className="text-amber-400 font-bold mb-2">How it works</h3>
+          <ol className="text-sm text-slate-300 space-y-1 list-decimal list-inside">
+            <li>Click &quot;Check for Completed Matches&quot; — it fetches IPL matches from CricAPI</li>
+            <li>Any completed match that hasn&apos;t been processed yet gets auto-scored</li>
+            <li>Fantasy points are calculated for every player in the scorecard</li>
+            <li>Leaderboards for all active rooms are updated automatically</li>
+          </ol>
+          <div className="mt-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+            <p className="text-xs text-slate-400">
+              <span className="text-amber-400 font-bold">Cron Job:</span> When deployed on Vercel,
+              this runs automatically every 2 hours. You can also trigger it manually below.
+            </p>
+          </div>
+        </CardBody>
+      </Card>
+
+      {/* Auto-check button */}
+      <Card glow="gold">
+        <CardBody>
+          <h3 className="text-white font-bold mb-3">Auto-Check for New Scores</h3>
+          <p className="text-sm text-slate-400 mb-4">
+            Scans CricAPI for completed IPL matches and processes any new ones.
+          </p>
+          <Button onClick={checkForScores} loading={checking} disabled={checking}>
+            {checking ? 'Checking...' : 'Check for Completed Matches'}
+          </Button>
+        </CardBody>
+      </Card>
+
+      {/* Manual match ID input */}
+      <Card>
+        <CardBody>
+          <h3 className="text-white font-bold mb-3">Process Specific Match</h3>
+          <p className="text-sm text-slate-400 mb-4">
+            If you have a CricAPI match ID, you can process it directly.
+            Find match IDs at{' '}
+            <a href="https://api.cricapi.com/v1/currentMatches?apikey=YOUR_KEY"
+               className="text-amber-400 underline" target="_blank" rel="noopener">
+              CricAPI matches endpoint
+            </a>.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Input
+              label="CricAPI Match ID"
+              value={manualMatchId}
+              onChange={(e) => setManualMatchId(e.target.value)}
+              placeholder="e.g., a1b2c3d4-e5f6-..."
+            />
+            <Input
+              label="Match Number"
+              value={manualNumber}
+              onChange={(e) => setManualNumber(e.target.value)}
+              placeholder="e.g., 1"
+            />
+          </div>
+          <div className="mt-3">
+            <Button
+              variant="secondary"
+              onClick={processManualMatch}
+              loading={processing}
+              disabled={processing || !manualMatchId}
+            >
+              {processing ? 'Processing...' : 'Process This Match'}
+            </Button>
+          </div>
+        </CardBody>
+      </Card>
+
+      {/* Error display */}
+      {error && (
+        <div className="p-4 rounded-lg bg-red-900/30 border border-red-700 text-red-300">
+          <p className="font-bold">Error</p>
+          <p className="text-sm mt-1">{error}</p>
+          {error.includes('CRICAPI_KEY') && (
+            <div className="mt-2 text-xs text-red-400">
+              <p>To fix this:</p>
+              <ol className="list-decimal list-inside mt-1 space-y-0.5">
+                <li>Go to <a href="https://cricketdata.org" className="underline" target="_blank" rel="noopener">cricketdata.org</a> and sign up (free)</li>
+                <li>Copy your API key from the dashboard</li>
+                <li>Add <code className="bg-red-900/50 px-1 rounded">CRICAPI_KEY=your_key</code> to your <code>.env.local</code></li>
+                <li>Restart the dev server</li>
+              </ol>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Result display */}
+      {result && (
+        <Card glow="purple">
+          <CardBody>
+            <h3 className="text-emerald-400 font-bold mb-2">Result</h3>
+            {result.message && (
+              <p className="text-white mb-2">{result.message}</p>
+            )}
+            {result.success && (
+              <div className="space-y-2">
+                <p className="text-white">
+                  Match: <span className="text-amber-400 font-bold">{result.match}</span>
+                </p>
+                <p className="text-white">
+                  Winner: <span className="text-emerald-400 font-bold">{result.winner || 'N/A'}</span>
+                </p>
+                <p className="text-white">
+                  Players processed: <span className="text-amber-400">{result.players_processed}</span>
+                </p>
+                <p className="text-white">
+                  Total fantasy points: <span className="text-purple-400">{result.total_fantasy_points}</span>
+                </p>
+                <p className="text-white">
+                  Leaderboards updated: <span className="text-blue-400">{result.leaderboards_updated}</span>
+                </p>
+                {result.unmatched_players?.length > 0 && (
+                  <div className="mt-2 p-2 rounded bg-yellow-900/20 border border-yellow-800">
+                    <p className="text-xs text-yellow-400 font-bold">Unmatched players (not in DB):</p>
+                    <p className="text-xs text-yellow-300 mt-1">
+                      {result.unmatched_players.join(', ')}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+            {result.results?.map((r: any, i: number) => (
+              <div key={i} className="mt-2 p-2 rounded bg-slate-800/50 border border-slate-700">
+                <p className="text-sm">
+                  <span className={r.status === 'success' ? 'text-emerald-400' : 'text-red-400'}>
+                    {r.status === 'success' ? '✓' : '✗'}
+                  </span>{' '}
+                  {r.match} — {r.players_processed ?? 0} players, {r.total_fantasy_points ?? 0} pts
+                </p>
+              </div>
+            ))}
+            {result.upcoming?.length > 0 && (
+              <div className="mt-3">
+                <p className="text-xs text-slate-400 font-bold mb-1">Upcoming IPL matches:</p>
+                {result.upcoming.map((m: any, i: number) => (
+                  <p key={i} className="text-xs text-slate-500">{m.name} — {m.date}</p>
+                ))}
+              </div>
+            )}
+            <pre className="mt-3 text-xs text-slate-500 overflow-auto max-h-40 p-2 rounded bg-slate-950">
+              {JSON.stringify(result, null, 2)}
+            </pre>
+          </CardBody>
+        </Card>
+      )}
+    </div>
   );
 }
 
@@ -1076,9 +1283,10 @@ function PlayerManagementTab() {
 
 export default function AdminPage() {
   const { user, loading: authLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabId>('matches');
+  const [activeTab, setActiveTab] = useState<TabId>('auto');
 
   const TABS: { id: TabId; label: string }[] = [
+    { id: 'auto',       label: 'Auto Scores' },
     { id: 'matches',    label: 'Match Results' },
     { id: 'stats',      label: 'Player Stats' },
     { id: 'leaderboard', label: 'Leaderboard' },
@@ -1149,6 +1357,7 @@ export default function AdminPage() {
         </div>
 
         {/* Tab content */}
+        {activeTab === 'auto'        && <AutoScoresTab />}
         {activeTab === 'matches'     && <MatchResultsTab />}
         {activeTab === 'stats'       && <PlayerStatsTab />}
         {activeTab === 'leaderboard' && <LeaderboardTab />}
